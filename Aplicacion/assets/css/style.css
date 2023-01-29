@@ -1,0 +1,27 @@
+.alerta{
+    padding: 5px;
+    font-size: 14px;
+    
+}
+.alerta-error{
+    color: red;
+}
+.alerta-exito{
+    color:green;
+    font-size: 14px;
+}
+
+input[type="button"],
+input[type="submit"],
+.boton{
+    margin-top: 5px;
+    margin-bottom: 5px;
+    display:block;
+    border-radius: 2px;
+    color:white ;
+    background: #007ee5;
+    border: 1px solid #156785;
+    cursor:pointer;
+    padding: 7px;
+}
+
