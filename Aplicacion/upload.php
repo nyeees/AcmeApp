@@ -8,39 +8,28 @@ if (isset($_POST['uploadBtn']) && $_POST['uploadBtn'] == 'Enviar') {
 
     $fileTmpPathC = $_FILES['clienteInfo']['tmp_name'];
     $fileNameC = $_FILES['clienteInfo']['name'];
-    //$fileSizeC = $_FILES['clienteInfo']['size'];
-    //$fileTypeC = $_FILES['clienteInfo']['type'];
     $file_extensionC = pathinfo($fileNameC, PATHINFO_EXTENSION); //Asi obtenemos la extension
-    
     $fileNameCmpsC = explode(".", $fileNameC);
     $fileExtensionC = strtolower(end($fileNameCmpsC));
     
     $fileTmpPathPr = $_FILES['productosInfo']['tmp_name'];
     $fileNamePr = $_FILES['productosInfo']['name'];
-    //$fileSizePr = $_FILES['productosInfo']['size'];
-    //$fileTypePr = $_FILES['productosInfo']['type'];
     $file_extensionPr = pathinfo($fileNamePr, PATHINFO_EXTENSION);
-    
     $fileNameCmpsPr = explode(".", $fileNamePr);
     $fileExtensionPr = strtolower(end($fileNameCmpsPr));
     
     $fileTmpPathPe = $_FILES['pedidosInfo']['tmp_name'];
     $fileNamePe = $_FILES['pedidosInfo']['name'];
-    //$fileSizePe = $_FILES['pedidosInfo']['size'];
-   // $fileTypePe = $_FILES['pedidosInfo']['type'];
     $file_extensionPe = pathinfo($fileNamePe, PATHINFO_EXTENSION);
-    
     $fileNameCmpsPe = explode(".", $fileNamePe);
     $fileExtensionPe = strtolower(end($fileNameCmpsPe));
     
-
     $errores = array(); // Creamos un array con los errores
     
     if ($file_extensionC != "csv" || $file_extensionPr != "csv" || $file_extensionPe != "csv") {
         $errores['extension']= "Tu extensión no es valida";
         $extension_success=false;
     }else{
-        
         $extension_success=true;
     }
     
@@ -59,121 +48,97 @@ if (isset($_POST['uploadBtn']) && $_POST['uploadBtn'] == 'Enviar') {
     }
 
     if(count($errores) == 0){
-        
         $fp = fopen ("uploadedFiles/products.csv","r");
-        $products=[]; //Guardaremos todos los id de producto del excel
-        $i=-1;
+        $products=[]; //Guardaremos todos los objetos tipo Product
+        $i=0;  //La primera fila del csv que no nos interesa por ahora
         
-        while ($data = fgetcsv ($fp, 1000, ",")) {
-            
-            if($i>=0){ //La primera fila del csv no la queremos
-                
-                //CREAMOS UN OBJETO PRODUCTO POR CADA PRODUCTO
-                ${"product" . "$i"}=new product($data[0],"$data[1]",$data[2]);
-               
-                
-                array_push($products, ${"product" . "$i"}->getId()); //De esta manera puedo buscar el cliente ya que no se usar LARAVEL
+        while ($data = fgetcsv ($fp, 1000, ",")) {   
+            if($i>0){ //La primera fila del csv no la queremos
+                $productCSV=new Product($data[0],"$data[1]",$data[2]);//CREAMOS UN OBJETO PRODUCTO POR CADA PRODUCTO
+                $products[]=$productCSV; //Vamos introduciendo los objetos en el array
             }
-            
-            $i++;
-            
+            $i++;  
         }
-
-        
         
         fclose ($fp);
         
-        $customersInOrders=[]; //
-        $i=-1; //-1 ya que esta sera la primera fila del csv que no nos interesa
+        
+        
+        $orders=[]; //Guardaremos todos los objetos tipo Order
+        $i=0;
         $fp = fopen ("uploadedFiles/orders.csv","r");
         
         while ($data = fgetcsv ($fp, 1000, ",")) {
-            
-            if($i>=0){
-                ${"order" . "$i"}=new order($data[0],$data[1],"$data[2]");
-                array_push($customersInOrders, ${"order" . "$i"}->getIdCustomer());
+            if($i>0){
+                $orderCSV=new Order($data[0],$data[1],"$data[2]");
+                $orders[]=$orderCSV; //Vamos introduciendo los objetos en el array
             }
-            
-            
             $i++;
-            
-            
         }
         
-        
-        
-        $i=-1;
         fclose ($fp);
         
+        
+        
+        $i=0;
         $fp = fopen ("uploadedFiles/customers.csv","r");
-        $customers=[]; //Guardare los ids tal como vienen en el excel
-          
-                
-        while ($data = fgetcsv ($fp, 1000, ",")) {
-            
-            
-            if($i>=0){ //La primera fila del csv no la queremos
+        $customers=[];//Guardaremos todos los objetos tipo Customer
 
-                ${"customer" . "$i"}=new customer($data[0],"$data[1]","$data[2]"); 
-                array_push($customers, ${"customer" . "$i"}->getId());
+        while ($data = fgetcsv ($fp, 1000, ",")) {
+            if($i>0){
+                $customerCSV=new customer($data[0],"$data[1]","$data[2]"); 
+                $customers[]=$customerCSV;
             }
-            
-            
-            
             $i++;
-            
-            
         }
         
-        
-          
         fclose ($fp);
-       
-        $sum=0.0;
+        
+        
+        
+        $sum=0;
         $arrayReporte1= array();
         $arrayReporte3= array();
-        $arrayReporte4= array();
-        $arrayReporte5=array();
         
-        $arrayReporte1[0]=array("id","total");//Primero mostraremos los nombres de los campos
+        array_push($arrayReporte1, array("id","total"));
+        // LOGICA REPORTE 1 Y 3
         
-        //LOGICA CON OBJETOS REPORTE 1 Y 3
-       
-        
-        for($i=0; $i<=Order::getCount()-1; $i++){ //Recorremos todos los objetos Order
-            
-            $idProductos=${"order" . "$i"}->getIdProducts();
+                foreach($orders as $key => $order){ //Recorremos el array con todos los pedidos
+                    $idProductos=$order->getIdProducts();//Almacenamos los productos de cada pedido
+                    
+                    for ($j = 0; $j <= strlen($idProductos)/2 ; $j++) { //Recorremos el string $idProductos
+                        $idProducto=$idProductos[2*$j]; 
+                        
+                        foreach($products as $product){
+                            if($product->getId()==$idProducto){
+                                $sum+=$product->getCost();
+                            }
+                        }    
+                    }
+                    
+                    $arrayReporte3[$key+1]=array($order->getIdCustomer(),$sum);
+                    $arrayReporte1[$key+1]=array($order->getId(),$sum);
+                    $sum=0;
+                }
 
-            for ($j = 0; $j <= strlen($idProductos)/2 ; $j++) { //Recorremos los ids de producto de orders.csv
-                $idProducto=$idProductos[2*$j]; //Vamos cogiendo los pares que es donde se encuentran los numeros
+                //Sumar los costes cuando coincida el id de cliente REPORTE 3
+                $array3UniqCust = [];
+                foreach ($arrayReporte3 as $item) { //Sumamos los $sum que tengan el mismo id de cliente
+                  if (!isset($array3UniqCust[$item[0]])) {//Si no existe aun ese id
+                    $array3UniqCust[$item[0]] = $item[1]; //Introducimos el float por primera vez en la posicion $item[0] que es el id del cliente
+                  } else {
+                    $array3UniqCust[$item[0]] += $item[1];//Le sumamos el float en esa posicion
+                  }
+                }
                 
-                $sum+=${"product" . "$idProducto"}->getCost();
-               
-               
-                $arrayReporte1[$i+1]=array(${"order" . "$i"}->getId(),$sum);//IdOrder-TotalPriceOrder
-                $arrayParaReporte3[$i+1]=array($customersInOrders[$i],$sum);//IdOrder-IdCustomer-TotalPriceOrder
+                arsort($array3UniqCust); //Ordenamos descendentemente
+
+                $final3 = [];
+                foreach ($array3UniqCust as $key => $value) {//Es mas comodo al generar el csv convertirlo en un array mulitdimensional
+                  $final3[] = [$key, $value]; //Preparado para el csv
+                }
+
                 
-            }
-
-            $sum=0;
-
-        }
-        
-
-        
-
-
-        
-        
-        
-        $arrayParaReporte3Suma=sumByClient($arrayParaReporte3);
-        arsort($arrayParaReporte3Suma);
-
-        
-   
-        
-        
-        
         //Crear CSV para el reporte 1
 
         $ruta ="uploadedFiles/order_prices.csv";
@@ -181,65 +146,34 @@ if (isset($_POST['uploadBtn']) && $_POST['uploadBtn'] == 'Enviar') {
         
         generarCSV($arrayReporte1, $ruta, $delimitador = ',', $encapsulador = '"');
 
-        $idClientesConProducto =array_fill(0, 6, array());
+        $idClientesConProducto =array_fill(0, count($products), array());
         
+        //LOGICA REPORTE 2
         
-        //LOGICA REPORTE 2 CON OBJETOS: SACAR EL ID DEL PRODUCTO Y LOS IDS DE TODOS LOS CLIENTES QUE TENGAN UN PEDIDO CON ESE PRODUCTO
-        
-        for($i=0; $i<=Product::getCount()-1; $i++){ //Recorremos todos los objetos Product
-            $idProducto=${"product" . "$i"}->getId();
-            
-            for($j=0; $j<=Order::getCount()-1; $j++){ //Recorremos todos los objetos Order
-                $idProductos=${"order" . "$j"}->getIdProducts();
-                $idCostumer= ${"order" . "$j"}->getIdCustomer();
+        foreach($products as $key => $product){
+            foreach ($orders as $order){
+                $idProductos=$order->getIdProducts();//Id del producto del order en el que nos encontramos
                 
-                for ($k = 0; $k <= strlen($idProductos)/2 ; $k++) { //Recorremos los ids de producto de orders.csv
-                    
-                    
-                    
-                    
-                    if($idProducto==$idProductos[2*$k]){ //Problem i dont use Laravel
-                        //array_push($idClientesConProducto[$i],${"customer" . "$id"};
-                        //echo "cuando Estamos en: $idProducto  y encontramos el ${idProductos[2*$k]} del costumer: $customersInOrders[$j]";
-                        array_push($idClientesConProducto[$i], $customersInOrders[$j]);
-                        //var_dump($idClientesConProducto[$i]);
+                    for ($j = 0; $j <= strlen($idProductos)/2 ; $j++) { //Recorremos el string $idProductos
+                        $idProducto=$idProductos[2*$j]; 
+                        
+                        if($idProducto==$product->getId()){
+                            array_push($idClientesConProducto[$key],$order->getIdCustomer());
+                            
+                        }       
                     }
-                    
                 }
-            }
-            
-            
-        }
-        
-        //var_dump($idClientesConProducto);
-        
-        
-        
-        //Quitamos los repetidos de cada subArray
-        
-//        $result_array = array();
-//        $unique_array = array();
-//        foreach ($idClientesConProducto as $key => $sub_array) {
-//            $unique_array = array_unique($sub_array);
-//            $result_array[$key] = $unique_array;
-//            
-//        }
-        
-        $result_array= quitarRepetidos($idClientesConProducto);
+         }
+         
+        $idClientesConProducto = array_map('array_unique', $idClientesConProducto);
 
-       
         
         //Crear CSV para el reporte 2
-        $array_final=array();
+        $array_final=array("id","customer_ids");
         
-        array_push($array_final,"id");
-        array_push($array_final,"customer_ids");
-        
-        foreach ($result_array as $key => $sub_array){
-            $IdsWithSpace=implode(" ", $sub_array);
-            
+        foreach ($idClientesConProducto as $key => $sub_array){
             array_push($array_final,"$key");
-            array_push($array_final,$IdsWithSpace); 
+            array_push($array_final,implode(" ", $sub_array)); 
         }
         
         
@@ -249,31 +183,27 @@ if (isset($_POST['uploadBtn']) && $_POST['uploadBtn'] == 'Enviar') {
         generarCSV($separatedInPairs, $ruta, $delimitador = ',', $encapsulador = ' ');
         
         
-        //LOGICA REPORTE 3 : SACAR EL ID DEL PRODUCTO Y LOS IDS DE TODOS LOS CLIENTES QUE TENGAN UN PEDIDO CON ESE PRODUCTO
-        //$arrayParaReporte3Suma
-        $arrayFinal3[0]=array("IdCliente","FirstName","LastName","Total");
-        
-        
-        foreach ($arrayParaReporte3Suma as $key => $valor){
-            for($i=0; $i<=Customer::getCount()-1; $i++){
-                $costumerId= ${"customer" . "$i"}->getId();
-                $costumerFirstName= ${"customer" . "$i"}->getFirstName();
-                $costumerLastName= ${"customer" . "$i"}->getLastName(); 
+        //LOGICA REPORTE 3
+     
+        array_unshift($final3,array("id","total","name","lastname"));
+        foreach($final3 as $key => $sub_array){//Recorremos array con id de cliente y su total gastado
+            foreach ($customers as $customer){//Recorremos todos los clientes
                 
-                if($costumerId == $key){
-                    $arrayFinal3[$i+1]=array($costumerId,$costumerFirstName,$costumerLastName,$valor);
+                
+                if($customer->getId()== $sub_array[0]){ //Si coincide el id de cliente del array y del foreach..
                     
+                    $final3[$key][2]= $customer->getFirstName(); //añadimos nombre y apellidos
+                    $final3[$key][3]= $customer->getLastName();
                 }
             }
         }
-        
 
         
         
         //Crear CSV para el reporte 3
         
         $ruta ="uploadedFiles/customer_ranking.csv";
-        generarCSV($arrayFinal3, $ruta, $delimitador = ',', $encapsulador = ' ');
+        generarCSV($final3, $ruta, $delimitador = ',', $encapsulador = ' ');
         
         
         

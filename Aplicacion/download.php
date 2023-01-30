@@ -12,6 +12,7 @@ if(!empty($_GET['file'])){
         
         // Read the file
         readfile($filePath);
+        die();
         exit;
     }else{
         echo 'The file does not exist.';
